@@ -34,7 +34,7 @@ class ImageSerializer(serializers.ModelSerializer):
             'height',
             'size',
             'groups', # 添加 groups 字段
-            # 'owner', # 如果你有关联 owner 字段
+            'owner', # 如果你有关联 owner 字段
             # 'owner_username', # 如果你有关联 owner 字段并想显示用户名
             'uploaded_at',
             'updated_at',

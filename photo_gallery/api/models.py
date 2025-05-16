@@ -23,7 +23,7 @@ class Image(models.Model):
     width = models.IntegerField(editable=False, null=True, blank=True, help_text="图片宽度 (px)")
     height = models.IntegerField(editable=False, null=True, blank=True, help_text="图片高度 (px)")
     size = models.BigIntegerField(editable=False, null=True, blank=True, help_text="图片大小 (bytes)")
-    # owner = models.ForeignKey(User, related_name='images', on_delete=models.CASCADE, null=True, blank=True) # 可选：关联上传用户
+    owner = models.ForeignKey(User, related_name='images', on_delete=models.CASCADE, null=True, blank=True) # 可选：关联上传用户
     groups = models.ManyToManyField(Group, related_name='images', blank=True, help_text="图片所属分组")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
