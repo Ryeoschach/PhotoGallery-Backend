@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,9 +43,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'api',
+    'corsheaders',
+    'rest_framework_simplejwt',  # 新增 JWT 支持
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # 新增 CORS 中间件
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -136,3 +140,50 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# REST Framework 设置
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+}
+
+# JWT 设置
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
+
+# 或者指定允许的源（生产环境推荐）
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite 默认开发服务器
+    "http://localhost:3000",  # 其他可能的前端开发服务器
+    "https://yourdomain.com",  # 生产环境
+]
+
+# 允许凭证（如果需要在请求中包含 cookies）
+CORS_ALLOW_CREDENTIALS = True
+
+# 允许的 HTTP 方法
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# 允许的头部
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
