@@ -15,6 +15,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.pyc
 .python-version
 .venv
 media
+.gitignore
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info
+*.eggs
+*.env
+*.venv
+# macOS
+*.DS_Store
+# Windows
+Thumbs.db
+ehthumbs.db
