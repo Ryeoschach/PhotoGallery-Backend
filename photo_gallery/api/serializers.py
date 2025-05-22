@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Image, Group # 新增导入 Group
+from .models import Image, Group, HomeLayout # 新增导入 HomeLayout
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
@@ -68,3 +68,9 @@ class ImageSerializer(serializers.ModelSerializer):
         # if value.content_type not in allowed_types:
         #     raise serializers.ValidationError(f"不支持的图片类型: {value.content_type}. 支持的类型: {', '.join(allowed_types)}")
         return value
+
+class HomeLayoutSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HomeLayout
+        fields = ['id', 'name', 'is_active', 'config', 'created_at', 'updated_at']
+        read_only_fields = ('created_at', 'updated_at')

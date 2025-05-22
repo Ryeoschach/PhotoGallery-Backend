@@ -52,3 +52,24 @@ class Image(models.Model):
         # 删除模型实例时，同时删除关联的图片文件
         self.image.delete(save=False) # save=False 避免再次调用 save 方法
         super().delete(*args, **kwargs)
+
+class HomeLayout(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='layouts')
+    name = models.CharField(max_length=100, help_text="布局名称")
+    is_active = models.BooleanField(default=False, help_text="是否为当前激活的布局")
+    # 存储布局配置为JSON，包含图片间隔和网格内边距等设置
+    config = models.JSONField(default=dict, help_text="布局配置JSON，包含image_spacing和grid_padding等设置")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [['user', 'is_active']]  # 确保每个用户只有一个激活的布局
+
+    def save(self, *args, **kwargs):
+        # 如果当前布局被设置为活跃，则将该用户的其他布局设为非活跃
+        if self.is_active:
+            HomeLayout.objects.filter(user=self.user, is_active=True).exclude(id=self.id).update(is_active=False)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"
