@@ -158,6 +158,7 @@ SIMPLE_JWT = {
 # 或者指定允许的源（生产环境推荐）
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite 默认开发服务器
+    "http://localhost:8081", #  移动端
     "http://localhost:3000",  # 其他可能的前端开发服务器
     "https://yourdomain.com",  # 生产环境
 ]
