@@ -2,8 +2,13 @@ from django.contrib.auth.models import User
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import UserSerializer, ImageSerializer, GroupSerializer, HomeLayoutSerializer
-from .models import Image, Group, HomeLayout
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from .serializers import UserSerializer, ImageSerializer, GroupSerializer, HomeLayoutSerializer, CaptchaSerializer, CaptchaValidationSerializer, LoginWithCaptchaSerializer
+from .models import Image, Group, HomeLayout, Captcha
+from .utils import generate_captcha_code, create_captcha_image, cleanup_expired_captchas
+import uuid
 
 # 自定义权限类，用于确保用户只能修改/删除自己上传的图片
 class IsOwnerOrReadOnly(permissions.BasePermission):
@@ -157,3 +162,107 @@ class HomeLayoutViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(layout)
         return Response(serializer.data)
+
+class CaptchaView(APIView):
+    """验证码生成视图"""
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        """生成新的验证码"""
+        # 清理过期的验证码
+        cleanup_expired_captchas()
+        
+        # 生成验证码
+        code = generate_captcha_code()
+        session_key = str(uuid.uuid4())
+        
+        # 创建验证码图片
+        image_file = create_captcha_image(code)
+        
+        # 保存到数据库
+        captcha = Captcha.objects.create(
+            session_key=session_key,
+            code=code,
+            image=image_file
+        )
+        
+        # 序列化并返回
+        serializer = CaptchaSerializer(captcha, context={'request': request})
+        return Response(serializer.data)
+
+
+class CaptchaValidationView(APIView):
+    """验证码验证视图"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        """验证验证码"""
+        serializer = CaptchaValidationSerializer(data=request.data)
+        if serializer.is_valid():
+            # 验证码正确，标记为已使用
+            captcha = serializer.validated_data['captcha']
+            captcha.mark_as_used()
+            
+            return Response({
+                'success': True,
+                'message': '验证码验证成功'
+            })
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginWithCaptchaView(APIView):
+    """带验证码的登录视图"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        """使用用户名密码和验证码登录"""
+        serializer = LoginWithCaptchaSerializer(data=request.data)
+        if serializer.is_valid():
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            captcha = serializer.validated_data['captcha']
+            
+            # 验证用户名和密码
+            user = authenticate(username=username, password=password)
+            if user is None:
+                return Response({
+                    'success': False,
+                    'message': '用户名或密码错误'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            if not user.is_active:
+                return Response({
+                    'success': False,
+                    'message': '用户账户已被禁用'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # 标记验证码为已使用
+            captcha.mark_as_used()
+            
+            # 生成JWT令牌
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'success': True,
+                'message': '登录成功',
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                }
+            })
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

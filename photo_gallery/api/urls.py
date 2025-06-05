@@ -25,6 +25,10 @@ urlpatterns = [
     # JWT 认证端点
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # 验证码相关端点
+    path('captcha/', views.CaptchaView.as_view(), name='captcha'),
+    path('captcha/validate/', views.CaptchaValidationView.as_view(), name='captcha_validate'),
+    path('login-with-captcha/', views.LoginWithCaptchaView.as_view(), name='login_with_captcha'),
 ]
 
 DEFAULT_LAYOUT = {

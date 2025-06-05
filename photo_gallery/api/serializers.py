@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Image, Group, HomeLayout # 新增导入 HomeLayout
+from .models import Image, Group, HomeLayout, Captcha # 新增导入 Captcha
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
@@ -74,3 +74,69 @@ class HomeLayoutSerializer(serializers.ModelSerializer):
         model = HomeLayout
         fields = ['id', 'name', 'is_active', 'config', 'created_at', 'updated_at']
         read_only_fields = ('created_at', 'updated_at')
+
+class CaptchaSerializer(serializers.ModelSerializer):
+    """验证码序列化器"""
+    image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Captcha
+        fields = ['session_key', 'image_url', 'created_at', 'expires_at']
+        read_only_fields = ('session_key', 'image_url', 'created_at', 'expires_at')
+    
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+
+
+class CaptchaValidationSerializer(serializers.Serializer):
+    """验证码验证序列化器"""
+    session_key = serializers.CharField(max_length=128)
+    code = serializers.CharField(max_length=10)
+    
+    def validate(self, attrs):
+        session_key = attrs.get('session_key')
+        code = attrs.get('code')
+        
+        try:
+            captcha = Captcha.objects.get(session_key=session_key)
+        except Captcha.DoesNotExist:
+            raise serializers.ValidationError("无效的验证码会话")
+        
+        if not captcha.is_valid(code):
+            if captcha.is_expired():
+                raise serializers.ValidationError("验证码已过期")
+            elif captcha.is_used:
+                raise serializers.ValidationError("验证码已使用")
+            else:
+                raise serializers.ValidationError("验证码错误")
+        
+        attrs['captcha'] = captcha
+        return attrs
+
+
+class LoginWithCaptchaSerializer(serializers.Serializer):
+    """带验证码的登录序列化器"""
+    username = serializers.CharField()
+    password = serializers.CharField(style={'input_type': 'password'})
+    captcha_session_key = serializers.CharField(max_length=128)
+    captcha_code = serializers.CharField(max_length=10)
+    
+    def validate(self, attrs):
+        # 首先验证验证码
+        captcha_data = {
+            'session_key': attrs.get('captcha_session_key'),
+            'code': attrs.get('captcha_code')
+        }
+        captcha_serializer = CaptchaValidationSerializer(data=captcha_data)
+        if not captcha_serializer.is_valid():
+            raise serializers.ValidationError({"captcha": captcha_serializer.errors})
+        
+        # 验证码通过后，保存captcha对象供后续使用
+        attrs['captcha'] = captcha_serializer.validated_data['captcha']
+        
+        return attrs

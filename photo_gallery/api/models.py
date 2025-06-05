@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 import os
+import uuid
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 def get_upload_path(instance, filename):
     """自定义上传路径，例如：MEDIA_ROOT/user_<id>/<filename>"""
@@ -73,3 +76,42 @@ class HomeLayout(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
+
+class Captcha(models.Model):
+    """图片验证码模型"""
+    session_key = models.CharField(max_length=128, unique=True, help_text="会话标识符")
+    code = models.CharField(max_length=10, help_text="验证码文本")
+    image = models.ImageField(upload_to='captcha/', help_text="验证码图片")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="过期时间")
+    is_used = models.BooleanField(default=False, help_text="是否已使用")
+    
+    class Meta:
+        verbose_name = "验证码"
+        verbose_name_plural = "验证码"
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            # 设置验证码5分钟后过期
+            self.expires_at = timezone.now() + timedelta(minutes=5)
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        """检查验证码是否过期"""
+        return timezone.now() > self.expires_at
+    
+    def is_valid(self, code):
+        """验证验证码是否有效"""
+        return (
+            not self.is_used and 
+            not self.is_expired() and 
+            self.code.lower() == code.lower()
+        )
+    
+    def mark_as_used(self):
+        """标记验证码为已使用"""
+        self.is_used = True
+        self.save()
+    
+    def __str__(self):
+        return f"Captcha {self.session_key} - {self.code}"
